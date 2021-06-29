@@ -31,30 +31,6 @@
     "G5": "./samples/vsco2-glock/glock_medium_G5.wav",
     "G6": "./samples/vsco2-glock/glock_medium_G6.wav"
   },
-  "vsco2-harp": {
-    "A2": "./samples/vsco2-harp/a2.wav",
-    "A4": "./samples/vsco2-harp/a4.wav",
-    "A6": "./samples/vsco2-harp/a6.wav",
-    "B1": "./samples/vsco2-harp/b1.wav",
-    "B3": "./samples/vsco2-harp/b3.wav",
-    "B5": "./samples/vsco2-harp/b5.wav",
-    "B6": "./samples/vsco2-harp/b6.wav",
-    "C3": "./samples/vsco2-harp/c3.wav",
-    "C5": "./samples/vsco2-harp/c5.wav",
-    "D2": "./samples/vsco2-harp/d2.wav",
-    "D4": "./samples/vsco2-harp/d4.wav",
-    "D6": "./samples/vsco2-harp/d6.wav",
-    "D7": "./samples/vsco2-harp/d7.wav",
-    "E1": "./samples/vsco2-harp/e1.wav",
-    "E3": "./samples/vsco2-harp/e3.wav",
-    "E5": "./samples/vsco2-harp/e5.wav",
-    "F2": "./samples/vsco2-harp/f2.wav",
-    "F4": "./samples/vsco2-harp/f4.wav",
-    "F6": "./samples/vsco2-harp/f6.wav",
-    "F7": "./samples/vsco2-harp/f7.wav",
-    "G3": "./samples/vsco2-harp/g3.wav",
-    "G5": "./samples/vsco2-harp/g5.wav"
-  },
   "vsco2-cello-spic": {
     "1": {
       "A2": "./samples/vsco2-cello/spic/a2_1.wav",
@@ -646,27 +622,6 @@
     "F1": "f1.wav",
     "F2": "f2.wav"
   },
-  "vcsl-sleighbells": ["1.wav", "2.wav"],
-  "alex-hum-1": {
-    "A#2": "asharp2_1.wav",
-    "A#3": "asharp3_1.wav",
-    "C3": "c3_1.wav",
-    "C4": "c4_1.wav",
-    "D#3": "dsharp3_1.wav",
-    "F3": "f3_1.wav",
-    "G2": "g2_1.wav",
-    "G3": "g3_1.wav"
-  },
-  "alex-hum-2": {
-    "A#2": "asharp2_2.wav",
-    "A#3": "asharp3_2.wav",
-    "C3": "c3_2.wav",
-    "C4": "c4_2.wav",
-    "D#3": "dsharp3_2.wav",
-    "F3": "f3_2.wav",
-    "G2": "g2_2.wav",
-    "G3": "g3_2.wav"
-  },
   "snare-brush-stir": ["1.wav"],
   "snare-brush-hit-p": [
     "1.wav",
@@ -680,5 +635,15 @@
     "9.wav",
     "10.wav"
   ],
-  "ride-brush-p": ["1.wav", "2.wav", "3.wav", "4.wav", "5.wav", "6.wav"]
+  "ride-brush-p": ["1.wav", "2.wav", "3.wav", "4.wav", "5.wav", "6.wav"],
+  "tongue-drum": {
+    "A4": "a4-001.wav",
+    "A5": "a5-001.wav",
+    "C5": "c5-001.wav",
+    "C6": "c6-001.wav",
+    "D5": "d5-001.wav",
+    "E5": "e5-001.wav",
+    "G4": "g4-001.wav",
+    "G5": "g5-001.wav"
+  }
 }

@@ -1,91 +1,195 @@
 import * as Tone from 'tone';
 import {
   createPitchShiftedSampler,
+  createBuffer,
   transpose,
-  P1,
-  M3,
-  P4,
-  P5,
 } from '@generative-music/utilities';
 import samples from './samples';
 
-const primaryChord = ['C5', 'F5', 'A5', 'C6', 'D6', 'G6', 'A6'];
-const secondaryChord = ['B4', 'D5', 'F5', 'G5', 'B5', 'C6', 'F6', 'G6'];
+const BASE_TIME_UNIT = 0.5;
 
-const transpositions = [-P5, -P4, -M3, P1, M3, P4, P5];
-let transpositionIndex = 3;
-
-const buildPhrase = ({ length, notes }) => {
-  const phrase = [];
-  let nonSequentialNotes = notes;
-  for (let i = 0; i < length; i += 1) {
-    const selectedNote =
-      nonSequentialNotes[Math.floor(Math.random() * nonSequentialNotes.length)];
-    phrase.push(selectedNote);
-    nonSequentialNotes = notes.filter((note) => note !== selectedNote);
+function* makeNoteGenerator() {
+  let lastNote;
+  while (true) {
+    const potentialNotes = Object.keys(samples['tongue-drum']).filter(
+      (note) => note !== lastNote
+    );
+    lastNote =
+      potentialNotes[Math.floor(Math.random() * potentialNotes.length)];
+    yield lastNote;
   }
-  return phrase.map(transpose(transpositions[transpositionIndex]));
-};
+}
 
-const reverb = new Tone.Reverb(15).toDestination();
-reverb.generate();
+const createPercussionInstrument = (url) =>
+  createBuffer(url).then((buffer) => {
+    const output = new Tone.Gain();
+    const activeSources = [];
 
-createPitchShiftedSampler({
-  samplesByNote: samples['vsco2-piano-mf'],
+    const connect = (...args) => {
+      output.connect(...args);
+    };
+
+    const toDestination = () => {
+      output.toDestination();
+    };
+
+    const triggerAttack = (time, velocity = 1) => {
+      const gain = new Tone.Gain(velocity).connect(output);
+      const source = new Tone.ToneBufferSource(buffer)
+        .set({
+          onended: () => {
+            const index = activeSources.indexOf(source);
+            if (index > -1) {
+              activeSources.splice(index, 1);
+            }
+          },
+        })
+        .connect(gain);
+      source.start(time);
+    };
+
+    const dispose = () => {
+      activeSources.forEach((node) => {
+        node.stop();
+      });
+    };
+
+    return { connect, toDestination, triggerAttack, dispose };
+  });
+
+const tongueDrum = createPitchShiftedSampler({
+  samplesByNote: Object.keys(samples['tongue-drum']).reduce((o, note) => {
+    o[note] = `samples/tongue-drum/${samples['tongue-drum'][note]}`;
+    return o;
+  }, {}),
+  pitchShift: -12,
+}).then((sampler) => {
+  const compressor = new Tone.Compressor().toDestination();
+  sampler.connect(compressor);
+
+  const noteGenerator = makeNoteGenerator();
+
+  const createPhrase = () =>
+    Array.from({ length: 8 }, (_, i) => i)
+      .filter((i) => Math.random() < 0.5 - (i % 2) * 0.25)
+      .map((index) => ({
+        index,
+        note: noteGenerator.next().value,
+      }));
+
+  let phrase = createPhrase();
+  let phraseLoops = 0;
+  Tone.Transport.scheduleRepeat((time) => {
+    phrase.forEach(({ note, index }) => {
+      sampler.triggerAttack(note, time + index * BASE_TIME_UNIT + 0.95);
+    });
+    if (Math.random() < phraseLoops ** 2 / 100) {
+      console.log('new phrase');
+      phraseLoops = 0;
+      phrase = createPhrase();
+    } else {
+      phraseLoops += 1;
+    }
+  }, 8 * BASE_TIME_UNIT);
+});
+
+const percussionAutoFilter = new Tone.AutoFilter(
+  Math.random() * 0.001 + 0.001,
+  1000
+)
+  .start()
+  .toDestination();
+
+const hats = createPercussionInstrument(
+  './samples/itslucid-lofi-hats/9.wav'
+).then((sampler) => {
+  sampler.connect(percussionAutoFilter);
+  Tone.Transport.scheduleRepeat((time) => {
+    sampler.triggerAttack(time + 1, 0.1);
+    if (Math.random() < 0.1) {
+      sampler.triggerAttack(time + 1 + BASE_TIME_UNIT / 4, 0.1);
+    }
+  }, BASE_TIME_UNIT / 2);
+});
+
+const kicks = createPercussionInstrument(
+  './samples/itslucid-lofi-kick/1.wav'
+).then((sampler) => {
+  sampler.connect(percussionAutoFilter);
+  Tone.Transport.scheduleRepeat((time) => {
+    sampler.triggerAttack(time + 1, 0.25);
+    if (Math.random() < 0.2) {
+      sampler.triggerAttack(time + 1 + BASE_TIME_UNIT, 0.25);
+    }
+
+    if (Math.random() < 0.2) {
+      sampler.triggerAttack(time + 1 + BASE_TIME_UNIT * 7, 0.25);
+    }
+  }, 8 * BASE_TIME_UNIT);
+});
+
+const snare = createPercussionInstrument(
+  './samples/itslucid-lofi-snare/12.wav'
+).then((sampler) => {
+  sampler.connect(percussionAutoFilter);
+  Tone.Transport.scheduleRepeat((time) => {
+    if (Math.random() < 0.33) {
+      sampler.triggerAttack(time + 1 + 3.25 * BASE_TIME_UNIT, 0.25);
+    }
+    sampler.triggerAttack(time + 1 + 4 * BASE_TIME_UNIT, 0.25);
+    if (Math.random() < 0.1) {
+      sampler.triggerAttack(time + 1 + 7.5 * BASE_TIME_UNIT, 0.25);
+      sampler.triggerAttack(time + 1 + 7.75 * BASE_TIME_UNIT, 0.25);
+    }
+  }, 8 * BASE_TIME_UNIT);
+});
+
+Promise.all([hats, tongueDrum, kicks, snare]).then(() => {
+  Tone.Transport.start();
+});
+
+const violins = createPitchShiftedSampler({
+  samplesByNote: samples['vsco2-violins-susvib'],
   pitchShift: -24,
 }).then((sampler) => {
-  sampler.connect(Tone.Destination);
+  sampler.connect(Tone.getDestination());
 
-  const playPhrase = ({ isFirst = false } = {}) => {
-    let shouldPlayPrimary = isFirst || Math.random() < 0.5;
-    if (Math.random() < 1) {
-      shouldPlayPrimary = true;
-      const minNextPossibleTranspositionIndex = Math.max(
-        0,
-        transpositionIndex - 2
-      );
-      const maxNextPossibleTranspositionIndex = Math.min(
-        transpositions.length - 1,
-        transpositionIndex + 2
-      );
-      transpositionIndex = Math.floor(
-        Math.random() *
-          (maxNextPossibleTranspositionIndex +
-            1 -
-            minNextPossibleTranspositionIndex) +
-          minNextPossibleTranspositionIndex
-      );
-      console.log(transpositionIndex);
-    }
-    const num = Math.floor(Math.random() * 15 + 10);
+  let lastExtraNote = 'A';
+  let lastExtraNoteTime = Tone.now();
 
-    const exponent = Math.random() * 1.25 + 1;
+  const drone = () => {
+    sampler.triggerAttack('C4');
 
-    buildPhrase({
-      length: num,
-      notes: shouldPlayPrimary ? primaryChord : secondaryChord,
-    }).forEach((note, i) => {
-      sampler.triggerAttack(note, `+${(i / num) ** exponent * (num / 2)}`);
-    });
     Tone.Transport.scheduleOnce(() => {
-      playPhrase();
-    }, `+${num / 2 + 7 + Math.random() * 7}`);
+      drone();
+    }, `+${Math.random() * 10}`);
+
+    if (Tone.now() - lastExtraNoteTime < 20 || Math.random() < 0.7) {
+      return;
+    }
+
+    lastExtraNote = Math.random() < 0.6 || lastExtraNote === 'A' ? 'G' : 'A';
+    lastExtraNoteTime = Tone.now();
+    console.log(`${lastExtraNote}4`);
+    sampler.triggerAttack(`${lastExtraNote}4`);
+    if (Math.random() < 0.2) {
+      console.log(`${lastExtraNote}5`);
+      sampler.triggerAttack(`${lastExtraNote}5`);
+    }
   };
-
-  playPhrase({ isFirst: true });
-  Tone.Transport.start();
-
-  window.navigator.requestMIDIAccess().then((access) => {
-    console.log(access);
-    const inputs = Array.from(access.inputs).forEach(([name, device]) => {
-      device.onmidimessage = ({ data }) => {
-        const [command, key, velocity] = data;
-        if (command === 144 && velocity > 0) {
-          const note = Tone.Midi(key).toNote();
-          console.log(note);
-          sampler.triggerAttack(note);
-        }
-      };
-    });
-  });
+  drone();
 });
+
+const panner = new Tone.Panner().toDestination();
+const synth = new Tone.Synth({
+  oscillator: { type: 'sine' },
+  envelope: { release: 1, releaseCurve: 'linear' },
+  volume: -10,
+}).connect(panner);
+
+Tone.Transport.scheduleRepeat((time) => {
+  panner.pan.setValueAtTime(panner.pan.value, time + 1);
+  panner.pan.linearRampToValueAtTime(Math.random() * 2 - 1, time + 3);
+  panner.set({ pan: Math.random() * 2 - 1 });
+  synth.triggerAttackRelease('C2', 1, time + 1);
+}, BASE_TIME_UNIT * 8);
