@@ -64,32 +64,47 @@ const tongueDrum = createPitchShiftedSampler({
   }, {}),
   pitchShift: -12,
 }).then((sampler) => {
-  const compressor = new Tone.Compressor().toDestination();
+  const gain = new Tone.Gain(0).toDestination();
+  const compressor = new Tone.Compressor().connect(gain);
   sampler.connect(compressor);
 
   const noteGenerator = makeNoteGenerator();
 
   const createPhrase = () =>
     Array.from({ length: 8 }, (_, i) => i)
-      .filter((i) => Math.random() < 0.5 - (i % 2) * 0.25)
+      .filter((i) => Math.random() < 0.8 - (i % 2) * 0.6)
       .map((index) => ({
         index,
         note: noteGenerator.next().value,
       }));
 
-  let phrase = createPhrase();
-  let phraseLoops = 0;
+  let phrase = [];
+  const schedulePhrase = (startTime) => {
+    phrase = createPhrase();
+    const duration = Math.random() * 15 + 30;
+    console.log('setting gain at 0 at ', startTime);
+    gain.gain.setValueAtTime(0, startTime);
+    console.log('ramping to 1 at ', startTime + duration / 3);
+    gain.gain.linearRampToValueAtTime(1, startTime + duration / 3);
+
+    Tone.Transport.scheduleOnce((releaseTime) => {
+      gain.gain.setValueAtTime(1, releaseTime);
+      gain.gain.linearRampToValueAtTime(0, releaseTime + duration / 3);
+
+      Tone.Transport.scheduleOnce((endTime) => {
+        schedulePhrase(endTime);
+      }, releaseTime + Math.random() * 20 + 20);
+    }, startTime + (duration / 3) * 2);
+  };
+
+  Tone.Transport.scheduleOnce((time) => {
+    schedulePhrase(time);
+  }, Math.random() * 10 + 20);
+
   Tone.Transport.scheduleRepeat((time) => {
     phrase.forEach(({ note, index }) => {
-      sampler.triggerAttack(note, time + index * BASE_TIME_UNIT + 0.95);
+      //sampler.triggerAttack(note, time + index * BASE_TIME_UNIT + 0.95);
     });
-    if (Math.random() < phraseLoops ** 2 / 100) {
-      console.log('new phrase');
-      phraseLoops = 0;
-      phrase = createPhrase();
-    } else {
-      phraseLoops += 1;
-    }
   }, 8 * BASE_TIME_UNIT);
 });
 
@@ -105,9 +120,9 @@ const hats = createPercussionInstrument(
 ).then((sampler) => {
   sampler.connect(percussionAutoFilter);
   Tone.Transport.scheduleRepeat((time) => {
-    sampler.triggerAttack(time + 1, 0.1);
+    sampler.triggerAttack(time + 1, 0.05);
     if (Math.random() < 0.1) {
-      sampler.triggerAttack(time + 1 + BASE_TIME_UNIT / 4, 0.1);
+      sampler.triggerAttack(time + 1 + BASE_TIME_UNIT / 4, 0.05);
     }
   }, BASE_TIME_UNIT / 2);
 });
